@@ -169,8 +169,10 @@
     var videosOk = videos.filter(disponivel);
     var fotosOk = fotos.filter(disponivel);
 
-    // hora do vídeo: a cada FOTOS_ENTRE_VIDEOS fotos, ou quando não há fotos na pasta
-    if (videosOk.length > 0 && (contadorFotos >= FOTOS_ENTRE_VIDEOS || fotosOk.length === 0)) {
+    // hora do vídeo: após exibir as fotos disponíveis (até o máximo de FOTOS_ENTRE_VIDEOS),
+    // ou quando não há fotos na pasta
+    var limiteFotos = Math.min(FOTOS_ENTRE_VIDEOS, fotosOk.length || FOTOS_ENTRE_VIDEOS);
+    if (videosOk.length > 0 && (contadorFotos >= limiteFotos || fotosOk.length === 0)) {
       contadorFotos = 0;
       var vid = videosOk[videoIdx % videosOk.length]; // rotação sequencial
       videoIdx++;
