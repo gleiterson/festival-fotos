@@ -9,6 +9,7 @@ var PASTA_URL = 'https://drive.google.com/drive/folders/1a83fN530C-oKUIgfOB8hw25
 var TITULO = 'Festival de Inverno';
 var SEGUNDOS_POR_FOTO = 10;
 var INTERVALO_ATUALIZACAO = 30;            // segundos entre verificações de fotos novas
+var FOTOS_POR_VIDEO = 10;                  // a cada quantas fotos toca 1 vídeo
 var SITE_URL = 'https://www.somosflow.app.br/festival'; // destino do QR code exibido na TV
 
 // Chave de API do Google (necessária só para VÍDEOS na TV):

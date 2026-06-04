@@ -25,7 +25,7 @@
   }
   .layer video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: contain; display: none; background: #000;
+    object-fit: cover; display: none; background: #000; /* preenche a tela proporcionalmente */
   }
   .layer .handle {
     position: absolute; bottom: 76px; left: 0; width: 100%;
@@ -106,15 +106,24 @@
   var SEG_ATUALIZA = INTERVALO_ATUALIZACAO * 1000; // valor em segundos vem do config.js
   var MAX_VIDEO = 60000; // segurança: vídeo nunca segura a tela mais que 60s
 
+  var FOTOS_ENTRE_VIDEOS = (typeof FOTOS_POR_VIDEO !== 'undefined') ? FOTOS_POR_VIDEO : 10;
+
   var known = {};      // id -> {handle, video}
-  var playlist = [];   // ordem normal de exibição
-  var priority = [];   // itens novos: passam na frente
+  var fotos = [];      // ids das fotos (mais novas primeiro) — espelha a pasta a cada varredura
+  var videos = [];     // ids dos vídeos (mais novos primeiro) — incluir/excluir é automático
+  var priority = [];   // fotos novas: passam na frente
   var indisponiveis = {}; // id -> timestamp até quando pular (ex.: Drive processando)
   var cacheVideos = {};   // id -> blob URL (cada vídeo baixa só 1 vez por sessão)
-  var idx = 0;
+  var fotoIdx = 0;
+  var videoIdx = 0;       // rotação sequencial dos vídeos
+  var contadorFotos = 0;  // fotos exibidas desde o último vídeo
   var firstLoad = true;
   var activeA = true;
   var avancarTimer = null;
+
+  function disponivel(id) {
+    return !(indisponiveis[id] && Date.now() < indisponiveis[id]);
+  }
 
   function agendar(ms) {
     clearTimeout(avancarTimer);
@@ -130,22 +139,26 @@
     return API_URL + '?video=' + id;
   }
 
-  function onPhotos(photos) {
+  function onPhotos(lista) {
     var current = {};
-    for (var i = 0; i < photos.length; i++) {
-      var p = photos[i];
+    var novasFotos = [];
+    var novosVideos = [];
+    for (var i = 0; i < lista.length; i++) {
+      var p = lista[i];
       current[p.id] = true;
       if (!(p.id in known)) {
         known[p.id] = { handle: p.handle || '', video: !!p.video };
-        if (!firstLoad) priority.push(p.id);
-        playlist.push(p.id);
+        if (!firstLoad && !p.video) priority.push(p.id); // foto nova fura a fila
       }
+      if (p.video) novosVideos.push(p.id);
+      else novasFotos.push(p.id);
     }
-    // remove itens apagados da pasta
-    playlist = playlist.filter(function (id) { return current[id]; });
+    // as listas sempre espelham a pasta: incluir/excluir mídia vale na próxima varredura
+    fotos = novasFotos;
+    videos = novosVideos;
     priority = priority.filter(function (id) { return current[id]; });
 
-    if (firstLoad && playlist.length > 0) {
+    if (firstLoad && (fotos.length > 0 || videos.length > 0)) {
       firstLoad = false;
       document.getElementById('msg').style.display = 'none';
       showNext();
@@ -153,33 +166,41 @@
   }
 
   function showNext() {
-    if (playlist.length === 0) { agendar(3000); return; }
-    // procura o próximo item que não esteja marcado como indisponível
-    var id = null;
-    var tentativas = playlist.length + priority.length;
-    while (tentativas-- > 0) {
-      var cand = priority.length > 0 ? priority.shift() : playlist[idx++ % playlist.length];
-      if (indisponiveis[cand] && Date.now() < indisponiveis[cand]) continue;
-      id = cand;
-      break;
+    var videosOk = videos.filter(disponivel);
+    var fotosOk = fotos.filter(disponivel);
+
+    // hora do vídeo: a cada FOTOS_ENTRE_VIDEOS fotos, ou quando não há fotos na pasta
+    if (videosOk.length > 0 && (contadorFotos >= FOTOS_ENTRE_VIDEOS || fotosOk.length === 0)) {
+      contadorFotos = 0;
+      var vid = videosOk[videoIdx % videosOk.length]; // rotação sequencial
+      videoIdx++;
+      mostrarVideo(vid, (known[vid] || {}).handle || '');
+      return;
     }
-    if (id === null) { agendar(5000); return; } // tudo indisponível no momento, tenta de novo já já
+
+    if (fotosOk.length === 0) { agendar(3000); return; } // nada disponível no momento
+
+    // foto nova na frente; senão segue a rotação
+    var id = null;
+    while (priority.length > 0 && id === null) {
+      var cand = priority.shift();
+      if (disponivel(cand) && !known[cand].video) id = cand;
+    }
+    if (id === null) id = fotosOk[fotoIdx % fotosOk.length];
+    fotoIdx++;
 
     var item = known[id] || {};
-    if (item.video) {
-      mostrarVideo(id, item.handle || '');
-    } else {
-      var img = new Image();
-      img.onload = function () {
-        mostrarFoto(img.src, item.handle || '');
-        agendar(SEG_FOTO);
-      };
-      img.onerror = function () {
-        indisponiveis[id] = Date.now() + 60000; // pula esta foto por 1 min
-        agendar(400);
-      };
-      img.src = urlFoto(id);
-    }
+    var img = new Image();
+    img.onload = function () {
+      contadorFotos++;
+      mostrarFoto(img.src, item.handle || '');
+      agendar(SEG_FOTO);
+    };
+    img.onerror = function () {
+      indisponiveis[id] = Date.now() + 60000; // pula esta foto por 1 min
+      agendar(400);
+    };
+    img.src = urlFoto(id);
   }
 
   function trocar(preparar, handle) {
