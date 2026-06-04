@@ -70,7 +70,7 @@
 
 <script src="config.js"></script>
 <script>
-  document.getElementById('titulo').innerHTML = '&#10052; ' + TITULO;
+  document.getElementById('titulo').innerHTML = '&#10052;&#65039; ' + TITULO;
   document.getElementById('qrimg').src =
     'https://api.qrserver.com/v1/create-qr-code/?size=460x460&data=' + encodeURIComponent(SITE_URL);
 
@@ -126,7 +126,7 @@
     var show = document.getElementById(activeA ? 'layerB' : 'layerA');
     var hide = document.getElementById(activeA ? 'layerA' : 'layerB');
     show.getElementsByClassName('pic')[0].style.backgroundImage = 'url("' + url + '")';
-    show.getElementsByClassName('handle')[0].textContent = handle ? '❄ ' + handle + ' ❄' : ''; // legenda com flocos
+    show.getElementsByClassName('handle')[0].textContent = handle ? '❄️ ' + handle + ' ❄️' : ''; // legenda com flocos
     show.className = 'layer visible';
     hide.className = 'layer';
     activeA = !activeA;

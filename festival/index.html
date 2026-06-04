@@ -86,7 +86,7 @@
 
   <div class="card">
     <img id="logo" src="logo-fundo.png" alt="Logo da igreja">
-    <h1>&#10052; Festival de Inverno</h1>
+    <h1>&#10052;&#65039; Festival de Inverno</h1>
     <p class="sub">Envie sua foto e apareça na TV!</p>
 
     <img id="preview" alt="">
@@ -156,7 +156,7 @@
   sendBtn.addEventListener('click', function () {
     if (!imageData) return;
     sendBtn.disabled = true;
-    setStatus('Enviando... &#10052;', '');
+    setStatus('Enviando... &#10052;&#65039;', '');
     var legenda = document.getElementById('handle').value.trim();
     fetch(API_URL, {
       method: 'POST',
@@ -165,7 +165,7 @@
     .then(function (r) { return r.json(); })
     .then(function (res) {
       if (res.ok) {
-        setStatus('Foto enviada! Ela vai aparecer na TV em instantes &#10052;', 'ok');
+        setStatus('Foto enviada! Ela vai aparecer na TV em instantes &#10052;&#65039;', 'ok');
         imageData = null;
         preview.style.display = 'none';
         inputs.forEach(function (inp) { inp.value = ''; });
