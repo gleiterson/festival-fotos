@@ -109,6 +109,7 @@
   var known = {};      // id -> {handle, video}
   var playlist = [];   // ordem normal de exibição
   var priority = [];   // itens novos: passam na frente
+  var indisponiveis = {}; // id -> timestamp até quando pular (ex.: Drive processando)
   var idx = 0;
   var firstLoad = true;
   var activeA = true;
@@ -156,7 +157,17 @@
 
   function showNext() {
     if (playlist.length === 0) { agendar(3000); return; }
-    var id = priority.length > 0 ? priority.shift() : playlist[idx++ % playlist.length];
+    // procura o próximo item que não esteja marcado como indisponível
+    var id = null;
+    var tentativas = playlist.length + priority.length;
+    while (tentativas-- > 0) {
+      var cand = priority.length > 0 ? priority.shift() : playlist[idx++ % playlist.length];
+      if (indisponiveis[cand] && Date.now() < indisponiveis[cand]) continue;
+      id = cand;
+      break;
+    }
+    if (id === null) { agendar(5000); return; } // tudo indisponível no momento, tenta de novo já já
+
     var item = known[id] || {};
     if (item.video) {
       mostrarVideo(id, item.handle || '');
@@ -166,7 +177,10 @@
         mostrarFoto(img.src, item.handle || '');
         agendar(SEG_FOTO);
       };
-      img.onerror = function () { agendar(500); }; // pula item com erro
+      img.onerror = function () {
+        indisponiveis[id] = Date.now() + 60000; // pula esta foto por 1 min
+        agendar(400);
+      };
       img.src = urlFoto(id);
     }
   }
@@ -207,14 +221,20 @@
     var x = new XMLHttpRequest();
     x.open('GET', urlVideo(id));
     x.responseType = 'blob';
+    x.timeout = 20000; // não espera mais que 20s pelo download
+    function falhou() {
+      indisponiveis[id] = Date.now() + 120000; // pula este vídeo por 2 min (Drive processando)
+      agendar(400);
+    }
     x.onload = function () {
       if (x.status >= 200 && x.status < 300 && x.response) {
         tocarVideo(URL.createObjectURL(x.response), handle);
       } else {
-        agendar(4000); // vídeo indisponível (ex.: Drive ainda processando) -> tenta o próximo item com calma
+        falhou();
       }
     };
-    x.onerror = function () { agendar(4000); };
+    x.onerror = falhou;
+    x.ontimeout = falhou;
     x.send();
     agendar(45000); // segurança: se o download travar, avança
   }
