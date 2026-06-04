@@ -23,6 +23,10 @@
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background-position: center; background-size: contain; background-repeat: no-repeat;
   }
+  .layer video {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: contain; display: none; background: #000;
+  }
   .layer .handle {
     position: absolute; bottom: 76px; left: 0; width: 100%;
     text-align: center; color: #fff;
@@ -74,8 +78,8 @@
 </style>
 </head>
 <body>
-  <div id="layerA" class="layer"><div class="pic"></div><div class="handle"></div></div>
-  <div id="layerB" class="layer"><div class="pic"></div><div class="handle"></div></div>
+  <div id="layerA" class="layer"><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
+  <div id="layerB" class="layer"><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
   <div id="brand">
     <img id="logomarca" src="logo-marca.png" alt="">
     <div id="titulo"></div>
@@ -100,16 +104,31 @@
 
   var SEG_FOTO = SEGUNDOS_POR_FOTO * 1000;       // valor em segundos vem do config.js
   var SEG_ATUALIZA = INTERVALO_ATUALIZACAO * 1000; // valor em segundos vem do config.js
+  var MAX_VIDEO = 60000; // segurança: vídeo nunca segura a tela mais que 60s
 
-  var known = {};      // id -> @handle
+  var known = {};      // id -> {handle, video}
   var playlist = [];   // ordem normal de exibição
-  var priority = [];   // fotos novas: passam na frente
+  var priority = [];   // itens novos: passam na frente
   var idx = 0;
   var firstLoad = true;
   var activeA = true;
+  var avancarTimer = null;
 
-  function urlFor(id) {
+  function agendar(ms) {
+    clearTimeout(avancarTimer);
+    avancarTimer = setTimeout(showNext, ms);
+  }
+
+  function urlFoto(id) {
     return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1920';
+  }
+
+  function urlVideo(id) {
+    return 'https://www.googleapis.com/drive/v3/files/' + id + '?alt=media&key=' + API_KEY;
+  }
+
+  function temChave() {
+    return typeof API_KEY === 'string' && API_KEY.length > 10 && API_KEY.indexOf('COLE_') !== 0;
   }
 
   function onPhotos(photos) {
@@ -118,12 +137,13 @@
       var p = photos[i];
       current[p.id] = true;
       if (!(p.id in known)) {
-        known[p.id] = p.handle || '';
+        known[p.id] = { handle: p.handle || '', video: !!p.video };
+        if (p.video && !temChave()) continue; // sem chave de API, ignora vídeos
         if (!firstLoad) priority.push(p.id);
         playlist.push(p.id);
       }
     }
-    // remove fotos apagadas da pasta
+    // remove itens apagados da pasta
     playlist = playlist.filter(function (id) { return current[id]; });
     priority = priority.filter(function (id) { return current[id]; });
 
@@ -135,27 +155,71 @@
   }
 
   function showNext() {
-    if (playlist.length === 0) { setTimeout(showNext, 3000); return; }
+    if (playlist.length === 0) { agendar(3000); return; }
     var id = priority.length > 0 ? priority.shift() : playlist[idx++ % playlist.length];
-    var img = new Image();
-    img.onload = function () {
-      swapTo(img.src, known[id] || '');
-      setTimeout(showNext, SEG_FOTO);
-    };
-    img.onerror = function () { setTimeout(showNext, 500); }; // pula foto com erro
-    img.src = urlFor(id);
+    var item = known[id] || {};
+    if (item.video) {
+      mostrarVideo(id, item.handle || '');
+    } else {
+      var img = new Image();
+      img.onload = function () {
+        mostrarFoto(img.src, item.handle || '');
+        agendar(SEG_FOTO);
+      };
+      img.onerror = function () { agendar(500); }; // pula item com erro
+      img.src = urlFoto(id);
+    }
   }
 
-  function swapTo(url, handle) {
+  function trocar(preparar, handle) {
     var show = document.getElementById(activeA ? 'layerB' : 'layerA');
     var hide = document.getElementById(activeA ? 'layerA' : 'layerB');
-    show.getElementsByClassName('pic')[0].style.backgroundImage = 'url("' + url + '")';
+    preparar(show.getElementsByClassName('pic')[0], show.getElementsByTagName('video')[0]);
     var legendaEl = show.getElementsByClassName('handle')[0];
     legendaEl.textContent = handle ? '⛄ ' + handle + ' ⛄' : ''; // legenda com boneco de neve
     emojiImg(legendaEl);
     show.className = 'layer visible';
     hide.className = 'layer';
     activeA = !activeA;
+    // depois da transição, descarrega o vídeo da camada que saiu
+    setTimeout(function () {
+      var v = hide.getElementsByTagName('video')[0];
+      if (v) {
+        v.pause();
+        v.removeAttribute('src');
+        v.load();
+        v.style.display = 'none';
+      }
+    }, 1600);
+  }
+
+  function mostrarFoto(url, handle) {
+    trocar(function (pic, vid) {
+      vid.style.display = 'none';
+      pic.style.display = 'block';
+      pic.style.backgroundImage = 'url("' + url + '")';
+    }, handle);
+  }
+
+  function mostrarVideo(id, handle) {
+    trocar(function (pic, vid) {
+      pic.style.display = 'none';
+      pic.style.backgroundImage = '';
+      vid.style.display = 'block';
+      vid.onended = function () { agendar(300); };
+      vid.onerror = function () { agendar(500); };
+      vid.muted = false; // tenta com som
+      vid.src = urlVideo(id);
+      var p = vid.play();
+      if (p && p.catch) {
+        p.catch(function () {
+          // navegador bloqueou autoplay com som -> toca sem som
+          vid.muted = true;
+          vid.play();
+        });
+      }
+    }, handle);
+    agendar(MAX_VIDEO); // segurança caso o vídeo trave
   }
 
   function poll() {
