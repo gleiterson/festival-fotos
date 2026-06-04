@@ -110,6 +110,7 @@
   var playlist = [];   // ordem normal de exibição
   var priority = [];   // itens novos: passam na frente
   var indisponiveis = {}; // id -> timestamp até quando pular (ex.: Drive processando)
+  var cacheVideos = {};   // id -> blob URL (cada vídeo baixa só 1 vez por sessão)
   var idx = 0;
   var firstLoad = true;
   var activeA = true;
@@ -200,8 +201,7 @@
       var v = hide.getElementsByTagName('video')[0];
       if (v) {
         v.pause();
-        if (v.src && v.src.indexOf('blob:') === 0) URL.revokeObjectURL(v.src); // libera memória
-        v.removeAttribute('src');
+        v.removeAttribute('src'); // o blob fica no cache para reuso
         v.load();
         v.style.display = 'none';
       }
@@ -217,6 +217,11 @@
   }
 
   function mostrarVideo(id, handle) {
+    // já baixado nesta sessão? toca direto do cache
+    if (cacheVideos[id]) {
+      tocarVideo(cacheVideos[id], handle);
+      return;
+    }
     // baixa o vídeo inteiro primeiro (são curtos) — streaming direto trava no player
     var x = new XMLHttpRequest();
     x.open('GET', urlVideo(id));
@@ -228,7 +233,8 @@
     }
     x.onload = function () {
       if (x.status >= 200 && x.status < 300 && x.response) {
-        tocarVideo(URL.createObjectURL(x.response), handle);
+        cacheVideos[id] = URL.createObjectURL(x.response); // guarda pro resto da sessão
+        tocarVideo(cacheVideos[id], handle);
       } else {
         falhou();
       }
