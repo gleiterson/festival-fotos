@@ -126,11 +126,8 @@
   }
 
   function urlVideo(id) {
-    return 'https://www.googleapis.com/drive/v3/files/' + id + '?alt=media&key=' + API_KEY;
-  }
-
-  function temChave() {
-    return typeof API_KEY === 'string' && API_KEY.length > 10 && API_KEY.indexOf('COLE_') !== 0;
+    // o vídeo é entregue pela própria API (Apps Script), em base64
+    return API_URL + '?video=' + id;
   }
 
   function onPhotos(photos) {
@@ -140,7 +137,6 @@
       current[p.id] = true;
       if (!(p.id in known)) {
         known[p.id] = { handle: p.handle || '', video: !!p.video };
-        if (p.video && !temChave()) continue; // sem chave de API, ignora vídeos
         if (!firstLoad) priority.push(p.id);
         playlist.push(p.id);
       }
@@ -225,24 +221,30 @@
     // baixa o vídeo inteiro primeiro (são curtos) — streaming direto trava no player
     var x = new XMLHttpRequest();
     x.open('GET', urlVideo(id));
-    x.responseType = 'blob';
-    x.timeout = 20000; // não espera mais que 20s pelo download
+    x.timeout = 45000; // Apps Script pode levar alguns segundos
     function falhou() {
-      indisponiveis[id] = Date.now() + 120000; // pula este vídeo por 2 min (Drive processando)
+      indisponiveis[id] = Date.now() + 120000; // pula este vídeo por 2 min
       agendar(400);
     }
     x.onload = function () {
-      if (x.status >= 200 && x.status < 300 && x.response) {
-        cacheVideos[id] = URL.createObjectURL(x.response); // guarda pro resto da sessão
+      try {
+        var r = JSON.parse(x.responseText);
+        if (!r.ok || !r.data) { falhou(); return; }
+        // converte base64 -> blob
+        var bin = atob(r.data);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        var blob = new Blob([bytes], { type: r.mime || 'video/mp4' });
+        cacheVideos[id] = URL.createObjectURL(blob); // guarda pro resto da sessão
         tocarVideo(cacheVideos[id], handle);
-      } else {
+      } catch (e) {
         falhou();
       }
     };
     x.onerror = falhou;
     x.ontimeout = falhou;
     x.send();
-    agendar(45000); // segurança: se o download travar, avança
+    agendar(55000); // segurança: se o download travar, avança
   }
 
   function tocarVideo(url, handle) {
