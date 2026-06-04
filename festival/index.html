@@ -11,11 +11,40 @@
     background: linear-gradient(160deg, #0b1b3a 0%, #14306b 60%, #1d4f8f 100%);
     font-family: Arial, Helvetica, sans-serif; color: #fff;
     display: flex; align-items: center; justify-content: center; padding: 20px;
+    overflow-x: hidden;
   }
+  /* ===== Neve ===== */
+  #snow { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+  .flake { position: absolute; top: -6vh; animation: cair linear infinite; }
+  .flake span {
+    display: inline-block; color: #fff;
+    text-shadow: 0 0 6px rgba(255,255,255,0.45);
+    animation: balanca ease-in-out infinite alternate;
+  }
+  @keyframes cair { to { transform: translateY(116vh); } }
+  @keyframes balanca {
+    from { transform: translateX(-14px) rotate(-14deg); }
+    to   { transform: translateX(14px) rotate(14deg); }
+  }
+  /* ===== Boneco de neve ===== */
+  #boneco {
+    position: fixed; bottom: 6px; left: 14px; font-size: 58px;
+    z-index: 1; pointer-events: none;
+    transform-origin: bottom center;
+    animation: dancinha 3.2s ease-in-out infinite;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+  }
+  @keyframes dancinha {
+    0%, 100% { transform: rotate(-5deg); }
+    50%      { transform: rotate(5deg) translateY(-5px); }
+  }
+  /* ===== Cartão ===== */
   .card {
+    position: relative; z-index: 2;
     width: 100%; max-width: 420px; background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
     padding: 28px 22px; text-align: center;
+    backdrop-filter: blur(2px);
   }
   h1 { font-size: 26px; margin: 0 0 4px; }
   p.sub { color: #bcd3f5; margin: 0 0 22px; font-size: 14px; }
@@ -23,10 +52,11 @@
     width: 100%; max-height: 280px; object-fit: contain;
     border-radius: 10px; margin-bottom: 14px; display: none; background: #000;
   }
+  .botoes { display: flex; gap: 10px; margin-bottom: 14px; }
   .btn-file {
-    display: block; width: 100%; padding: 14px; border-radius: 10px;
+    flex: 1; display: block; padding: 14px 6px; border-radius: 10px;
     background: rgba(255,255,255,0.15); border: 2px dashed rgba(255,255,255,0.4);
-    color: #fff; font-size: 16px; cursor: pointer; margin-bottom: 14px;
+    color: #fff; font-size: 15px; cursor: pointer;
   }
   input[type=file] { display: none; }
   input[type=text] {
@@ -46,16 +76,25 @@
 </style>
 </head>
 <body>
+  <div id="snow"></div>
+  <div id="boneco">&#9924;</div>
+
   <div class="card">
     <h1>&#10052; Festival de Inverno</h1>
-    <p class="sub">Envie sua foto e apareça na TV do evento!</p>
+    <p class="sub">Envie sua foto e apareça na TV!</p>
 
     <img id="preview" alt="">
-    <label class="btn-file">
-      &#128247; Escolher foto
-      <input type="file" id="file" accept="image/*">
-    </label>
-    <input type="text" id="handle" placeholder="Seu @ do Instagram (opcional)" maxlength="31" autocapitalize="none">
+    <div class="botoes">
+      <label class="btn-file">
+        &#128247; Tirar foto
+        <input type="file" id="cam" accept="image/*" capture="environment">
+      </label>
+      <label class="btn-file">
+        &#128444;&#65039; Galeria
+        <input type="file" id="gal" accept="image/*">
+      </label>
+    </div>
+    <input type="text" id="handle" placeholder="Diga algo sobre o Festival" maxlength="60">
     <button id="send" disabled>Enviar foto</button>
     <div id="status"></div>
 
@@ -66,22 +105,45 @@
 <script>
   document.getElementById('pasta').href = PASTA_URL;
 
-  var fileInput = document.getElementById('file');
+  // ===== Neve =====
+  (function () {
+    var snow = document.getElementById('snow');
+    for (var i = 0; i < 36; i++) {
+      var f = document.createElement('div');
+      f.className = 'flake';
+      f.style.left = (Math.random() * 100) + 'vw';
+      f.style.animationDuration = (6 + Math.random() * 9) + 's';
+      f.style.animationDelay = (-Math.random() * 15) + 's';
+      var s = document.createElement('span');
+      s.textContent = '❄';
+      s.style.fontSize = (10 + Math.random() * 18) + 'px';
+      s.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+      s.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+      s.style.animationDelay = (-Math.random() * 3) + 's';
+      f.appendChild(s);
+      snow.appendChild(f);
+    }
+  })();
+
+  // ===== Envio =====
   var sendBtn = document.getElementById('send');
   var statusEl = document.getElementById('status');
   var preview = document.getElementById('preview');
   var imageData = null; // base64 da foto redimensionada
+  var inputs = [document.getElementById('cam'), document.getElementById('gal')];
 
-  fileInput.addEventListener('change', function () {
-    var f = fileInput.files[0];
-    if (!f) return;
-    setStatus('Preparando foto...', '');
-    resize(f, 1920, function (dataUrl) {
-      imageData = dataUrl.split(',')[1];
-      preview.src = dataUrl;
-      preview.style.display = 'block';
-      sendBtn.disabled = false;
-      setStatus('', '');
+  inputs.forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var f = inp.files[0];
+      if (!f) return;
+      setStatus('Preparando foto...', '');
+      resize(f, 1920, function (dataUrl) {
+        imageData = dataUrl.split(',')[1];
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+        sendBtn.disabled = false;
+        setStatus('', '');
+      });
     });
   });
 
@@ -89,10 +151,10 @@
     if (!imageData) return;
     sendBtn.disabled = true;
     setStatus('Enviando... &#10052;', '');
-    var handle = document.getElementById('handle').value.trim();
+    var legenda = document.getElementById('handle').value.trim();
     fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ handle: handle, mimeType: 'image/jpeg', data: imageData })
+      body: JSON.stringify({ handle: legenda, mimeType: 'image/jpeg', data: imageData })
     })
     .then(function (r) { return r.json(); })
     .then(function (res) {
@@ -100,7 +162,8 @@
         setStatus('Foto enviada! Ela vai aparecer na TV em instantes &#10052;', 'ok');
         imageData = null;
         preview.style.display = 'none';
-        fileInput.value = '';
+        inputs.forEach(function (inp) { inp.value = ''; });
+        document.getElementById('handle').value = '';
       } else {
         throw new Error(res.error || 'erro');
       }

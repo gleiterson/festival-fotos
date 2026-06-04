@@ -57,8 +57,8 @@
   document.getElementById('qrimg').src =
     'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(SITE_URL);
 
-  var SEG_FOTO = SEGUNDOS_POR_FOTO * 1000;
-  var SEG_ATUALIZA = INTERVALO_ATUALIZACAO * 1000;
+  var SEG_FOTO = SEGUNDOS_POR_FOTO * 1000;       // valor em segundos vem do config.js
+  var SEG_ATUALIZA = INTERVALO_ATUALIZACAO * 1000; // valor em segundos vem do config.js
 
   var known = {};      // id -> @handle
   var playlist = [];   // ordem normal de exibição
@@ -109,7 +109,7 @@
     var show = document.getElementById(activeA ? 'layerB' : 'layerA');
     var hide = document.getElementById(activeA ? 'layerA' : 'layerB');
     show.getElementsByClassName('pic')[0].style.backgroundImage = 'url("' + url + '")';
-    show.getElementsByClassName('handle')[0].innerHTML = handle;
+    show.getElementsByClassName('handle')[0].textContent = handle; // legenda livre, exibida com segurança
     show.className = 'layer visible';
     hide.className = 'layer';
     activeA = !activeA;
