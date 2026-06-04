@@ -12,5 +12,5 @@ var INTERVALO_ATUALIZACAO = 30;            // segundos entre verificações de f
 var SITE_URL = 'https://www.somosflow.app.br/festival'; // destino do QR code exibido na TV
 
 // Chave de API do Google (necessária só para VÍDEOS na TV):
-var API_KEY = 'COLE_A_CHAVE_DE_API_AQUI';
+var API_KEY = 'AIzaSyDcpnNJztkrYmsYoynOWxODK8ogJCjy0Cc';
 // ================================================
