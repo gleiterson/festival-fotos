@@ -186,6 +186,7 @@
       var v = hide.getElementsByTagName('video')[0];
       if (v) {
         v.pause();
+        if (v.src && v.src.indexOf('blob:') === 0) URL.revokeObjectURL(v.src); // libera memória
         v.removeAttribute('src');
         v.load();
         v.style.display = 'none';
@@ -202,6 +203,23 @@
   }
 
   function mostrarVideo(id, handle) {
+    // baixa o vídeo inteiro primeiro (são curtos) — streaming direto trava no player
+    var x = new XMLHttpRequest();
+    x.open('GET', urlVideo(id));
+    x.responseType = 'blob';
+    x.onload = function () {
+      if (x.status >= 200 && x.status < 300 && x.response) {
+        tocarVideo(URL.createObjectURL(x.response), handle);
+      } else {
+        agendar(500); // pula vídeo com erro
+      }
+    };
+    x.onerror = function () { agendar(500); };
+    x.send();
+    agendar(45000); // segurança: se o download travar, avança
+  }
+
+  function tocarVideo(url, handle) {
     trocar(function (pic, vid) {
       pic.style.display = 'none';
       pic.style.backgroundImage = '';
@@ -209,7 +227,7 @@
       vid.onended = function () { agendar(300); };
       vid.onerror = function () { agendar(500); };
       vid.muted = false; // tenta com som
-      vid.src = urlVideo(id);
+      vid.src = url;
       var p = vid.play();
       if (p && p.catch) {
         p.catch(function () {
