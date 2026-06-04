@@ -6,6 +6,7 @@
 <title>TV — Festival de Inverno</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
 <style>
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -56,6 +57,12 @@
     position: absolute; top: 50%; left: 0; width: 100%;
     text-align: center; color: #999; font-size: 28px; margin-top: -20px;
   }
+  /* emojis como imagem (mesmo visual em qualquer TV) */
+  img.emoji {
+    height: 1.1em; width: 1.1em;
+    margin: 0 0.15em; vertical-align: -0.15em;
+    display: inline-block;
+  }
 </style>
 </head>
 <body>
@@ -73,6 +80,15 @@
   document.getElementById('titulo').innerHTML = '&#10052;&#65039; ' + TITULO;
   document.getElementById('qrimg').src =
     'https://api.qrserver.com/v1/create-qr-code/?size=460x460&data=' + encodeURIComponent(SITE_URL);
+
+  // troca emojis por imagens (Twemoji) — mesmo visual em qualquer navegador/TV
+  function emojiImg(el) {
+    if (window.twemoji) {
+      twemoji.parse(el, { folder: 'svg', ext: '.svg' });
+    }
+  }
+  emojiImg(document.getElementById('titulo'));
+  emojiImg(document.getElementById('qr'));
 
   var SEG_FOTO = SEGUNDOS_POR_FOTO * 1000;       // valor em segundos vem do config.js
   var SEG_ATUALIZA = INTERVALO_ATUALIZACAO * 1000; // valor em segundos vem do config.js
@@ -126,7 +142,9 @@
     var show = document.getElementById(activeA ? 'layerB' : 'layerA');
     var hide = document.getElementById(activeA ? 'layerA' : 'layerB');
     show.getElementsByClassName('pic')[0].style.backgroundImage = 'url("' + url + '")';
-    show.getElementsByClassName('handle')[0].textContent = handle ? '⛄ ' + handle + ' ⛄' : ''; // legenda com boneco de neve
+    var legendaEl = show.getElementsByClassName('handle')[0];
+    legendaEl.textContent = handle ? '⛄ ' + handle + ' ⛄' : ''; // legenda com boneco de neve
+    emojiImg(legendaEl);
     show.className = 'layer visible';
     hide.className = 'layer';
     activeA = !activeA;
