@@ -211,10 +211,10 @@
       if (x.status >= 200 && x.status < 300 && x.response) {
         tocarVideo(URL.createObjectURL(x.response), handle);
       } else {
-        agendar(500); // pula vídeo com erro
+        agendar(4000); // vídeo indisponível (ex.: Drive ainda processando) -> tenta o próximo item com calma
       }
     };
-    x.onerror = function () { agendar(500); };
+    x.onerror = function () { agendar(4000); };
     x.send();
     agendar(45000); // segurança: se o download travar, avança
   }
