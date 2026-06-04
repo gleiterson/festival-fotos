@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Envie sua foto ❄ Festival de Inverno</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(160deg, #0b1b3a 0%, #14306b 60%, #1d4f8f 100%);
+    font-family: Arial, Helvetica, sans-serif; color: #fff;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .card {
+    width: 100%; max-width: 420px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+    padding: 28px 22px; text-align: center;
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p.sub { color: #bcd3f5; margin: 0 0 22px; font-size: 14px; }
+  #preview {
+    width: 100%; max-height: 280px; object-fit: contain;
+    border-radius: 10px; margin-bottom: 14px; display: none; background: #000;
+  }
+  .btn-file {
+    display: block; width: 100%; padding: 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.15); border: 2px dashed rgba(255,255,255,0.4);
+    color: #fff; font-size: 16px; cursor: pointer; margin-bottom: 14px;
+  }
+  input[type=file] { display: none; }
+  input[type=text] {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    font-size: 16px; margin-bottom: 14px;
+  }
+  button {
+    width: 100%; padding: 15px; border: none; border-radius: 10px;
+    background: #4da3ff; color: #06122b; font-size: 17px; font-weight: bold;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; }
+  #status { min-height: 24px; margin-top: 14px; font-size: 15px; }
+  .ok { color: #8ef0a8; }
+  .err { color: #ff9b9b; }
+  a.link { color: #bcd3f5; font-size: 14px; display: inline-block; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#10052; Festival de Inverno</h1>
+    <p class="sub">Envie sua foto e apareça na TV do evento!</p>
+
+    <img id="preview" alt="">
+    <label class="btn-file">
+      &#128247; Escolher foto
+      <input type="file" id="file" accept="image/*">
+    </label>
+    <input type="text" id="handle" placeholder="Seu @ do Instagram (opcional)" maxlength="31" autocapitalize="none">
+    <button id="send" disabled>Enviar foto</button>
+    <div id="status"></div>
+
+    <a class="link" id="pasta" href="#" target="_blank">Ver / baixar todas as fotos &#8599;</a>
+  </div>
+
+<script src="config.js"></script>
+<script>
+  document.getElementById('pasta').href = PASTA_URL;
+
+  var fileInput = document.getElementById('file');
+  var sendBtn = document.getElementById('send');
+  var statusEl = document.getElementById('status');
+  var preview = document.getElementById('preview');
+  var imageData = null; // base64 da foto redimensionada
+
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0];
+    if (!f) return;
+    setStatus('Preparando foto...', '');
+    resize(f, 1920, function (dataUrl) {
+      imageData = dataUrl.split(',')[1];
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      sendBtn.disabled = false;
+      setStatus('', '');
+    });
+  });
+
+  sendBtn.addEventListener('click', function () {
+    if (!imageData) return;
+    sendBtn.disabled = true;
+    setStatus('Enviando... &#10052;', '');
+    var handle = document.getElementById('handle').value.trim();
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ handle: handle, mimeType: 'image/jpeg', data: imageData })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (res.ok) {
+        setStatus('Foto enviada! Ela vai aparecer na TV em instantes &#10052;', 'ok');
+        imageData = null;
+        preview.style.display = 'none';
+        fileInput.value = '';
+      } else {
+        throw new Error(res.error || 'erro');
+      }
+    })
+    .catch(function () {
+      setStatus('Não foi possível enviar. Tente de novo.', 'err');
+      sendBtn.disabled = false;
+    });
+  });
+
+  // Redimensiona a foto no celular antes de enviar (mais rápido no Wi-Fi do evento)
+  function resize(file, maxSide, cb) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      var scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      cb(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = function () { setStatus('Arquivo inválido.', 'err'); };
+    img.src = url;
+  }
+
+  function setStatus(html, cls) {
+    statusEl.innerHTML = html;
+    statusEl.className = cls;
+  }
+</script>
+</body>
+</html>
