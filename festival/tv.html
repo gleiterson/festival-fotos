@@ -236,6 +236,13 @@
           vid.play();
         });
       }
+      // garantia: se ainda estiver parado depois de 1s, força mudo e toca
+      setTimeout(function () {
+        if (vid.paused) {
+          vid.muted = true;
+          vid.play();
+        }
+      }, 1000);
     }, handle);
     agendar(MAX_VIDEO); // segurança caso o vídeo trave
   }
