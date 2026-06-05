@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Envie sua foto ❄ Festival de Inverno</title>
+<title>Slide - Festival de Inverno</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -104,12 +104,12 @@
     <button id="send" disabled>Enviar foto</button>
     <div id="status"></div>
 
-    <a class="link" id="pasta" href="#" target="_blank">Ver / baixar todas as fotos &#8599;</a>
   </div>
 
 <script src="config.js"></script>
 <script>
-  document.getElementById('pasta').href = PASTA_URL;
+  var pastaEl = document.getElementById('pasta');
+  if (pastaEl) pastaEl.href = PASTA_URL; // link opcional
 
   // ===== Neve =====
   (function () {

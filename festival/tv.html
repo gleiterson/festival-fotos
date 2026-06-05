@@ -163,6 +163,44 @@
       document.getElementById('msg').style.display = 'none';
       showNext();
     }
+
+    prefetchVideos(); // baixa os vídeos em segundo plano para tocar sem pausas
+  }
+
+  // ===== Pré-carregamento dos vídeos (1 por vez, em segundo plano) =====
+  var prefetchAtivo = false;
+  function prefetchVideos() {
+    if (prefetchAtivo) return;
+    var faltando = videos.filter(function (id) { return !cacheVideos[id] && disponivel(id); });
+    if (faltando.length === 0) return;
+    prefetchAtivo = true;
+    var id = faltando[0];
+    var x = new XMLHttpRequest();
+    x.open('GET', urlVideo(id));
+    x.timeout = 60000;
+    function proximo() {
+      prefetchAtivo = false;
+      setTimeout(prefetchVideos, 2000); // segue para o próximo vídeo que faltar
+    }
+    x.onload = function () {
+      try {
+        var r = JSON.parse(x.responseText);
+        if (r.ok && r.data) {
+          var bin = atob(r.data);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          cacheVideos[id] = URL.createObjectURL(new Blob([bytes], { type: r.mime || 'video/mp4' }));
+        } else {
+          indisponiveis[id] = Date.now() + 120000;
+        }
+      } catch (e) {
+        indisponiveis[id] = Date.now() + 120000;
+      }
+      proximo();
+    };
+    x.onerror = function () { indisponiveis[id] = Date.now() + 120000; proximo(); };
+    x.ontimeout = function () { indisponiveis[id] = Date.now() + 120000; proximo(); };
+    x.send();
   }
 
   function showNext() {
