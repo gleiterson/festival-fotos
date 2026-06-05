@@ -1,3 +1,7 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/", "destination": "/festival", "permanent": false }
+  ]
 }

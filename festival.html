@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1b3a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Ctext%20x='2'%20y='25'%20font-size='24'%3E%E2%9D%84%3C/text%3E%3C/svg%3E">
+<title>Envie sua foto &middot; Festival de Inverno</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(160deg, #0b1b3a 0%, #14306b 60%, #1d4f8f 100%);
+    font-family: Arial, Helvetica, sans-serif; color: #fff;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    overflow-x: hidden;
+  }
+  /* ===== Neve ===== */
+  #snow { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+  .flake { position: absolute; top: -6vh; animation: cair linear infinite; }
+  .flake span {
+    display: inline-block; color: #fff;
+    text-shadow: 0 0 6px rgba(255,255,255,0.45);
+    animation: balanca ease-in-out infinite alternate;
+  }
+  @keyframes cair { to { transform: translateY(116vh); } }
+  @keyframes balanca {
+    from { transform: translateX(-14px) rotate(-14deg); }
+    to   { transform: translateX(14px) rotate(14deg); }
+  }
+  /* ===== Boneco de neve ===== */
+  #boneco {
+    position: fixed; bottom: 6px; left: 14px; font-size: 58px;
+    z-index: 1; pointer-events: none;
+    transform-origin: bottom center;
+    animation: dancinha 3.2s ease-in-out infinite;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+  }
+  @keyframes dancinha {
+    0%, 100% { transform: rotate(-5deg); }
+    50%      { transform: rotate(5deg) translateY(-5px); }
+  }
+  /* ===== Cartao ===== */
+  .card {
+    position: relative; z-index: 2;
+    width: 100%; max-width: 420px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+    padding: 28px 22px; text-align: center;
+    backdrop-filter: blur(2px);
+  }
+  #logo {
+    width: 92px; height: 92px; border-radius: 50%;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p.sub { color: #bcd3f5; margin: 0 0 22px; font-size: 14px; }
+  #preview {
+    width: 100%; max-height: 280px; object-fit: contain;
+    border-radius: 10px; margin-bottom: 14px; display: none; background: #000;
+  }
+  .botoes { display: flex; gap: 10px; margin-bottom: 14px; }
+  .btn-file {
+    flex: 1; display: block; padding: 14px 6px; border-radius: 10px;
+    background: rgba(255,255,255,0.15); border: 2px dashed rgba(255,255,255,0.4);
+    color: #fff; font-size: 15px; cursor: pointer;
+  }
+  input[type=file] { display: none; }
+  input[type=text] {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    font-size: 16px; margin-bottom: 14px;
+  }
+  button {
+    width: 100%; padding: 15px; border: none; border-radius: 10px;
+    background: #4da3ff; color: #06122b; font-size: 17px; font-weight: bold;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; }
+  #status { min-height: 24px; margin-top: 14px; font-size: 15px; }
+  .ok { color: #8ef0a8; }
+  .err { color: #ff9b9b; }
+  a.link { color: #bcd3f5; font-size: 14px; display: inline-block; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div id="snow"></div>
+  <div id="boneco">&#9924;</div>
+
+  <div class="card">
+    <img id="logo" src="logo-fundo.png" alt="Logo da igreja">
+    <h1>&#10052;&#65039; Festival de Inverno</h1>
+    <p class="sub">Envie sua foto e apare&#231;a na TV!</p>
+
+    <img id="preview" alt="">
+    <div class="botoes">
+      <label class="btn-file">
+        &#128247; Tirar foto
+        <input type="file" id="cam" accept="image/*" capture="environment">
+      </label>
+      <label class="btn-file">
+        &#128444;&#65039; Galeria
+        <input type="file" id="gal" accept="image/*">
+      </label>
+    </div>
+    <input type="text" id="handle" placeholder="Diga algo sobre o Festival" maxlength="60">
+    <button id="send" disabled>Enviar foto</button>
+    <div id="status"></div>
+
+  </div>
+
+<script src="config.js"></script>
+<script>
+  // ===== Neve =====
+  (function () {
+    var snow = document.getElementById('snow');
+    for (var i = 0; i < 36; i++) {
+      var f = document.createElement('div');
+      f.className = 'flake';
+      f.style.left = (Math.random() * 100) + 'vw';
+      f.style.animationDuration = (6 + Math.random() * 9) + 's';
+      f.style.animationDelay = (-Math.random() * 15) + 's';
+      var s = document.createElement('span');
+      var flocos = ['\u2744', '\u2745', '\u2746'];
+      s.textContent = flocos[Math.floor(Math.random() * flocos.length)];
+      s.style.fontSize = (10 + Math.random() * 18) + 'px';
+      s.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+      s.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+      s.style.animationDelay = (-Math.random() * 3) + 's';
+      f.appendChild(s);
+      snow.appendChild(f);
+    }
+  })();
+
+  // ===== Envio =====
+  var sendBtn = document.getElementById('send');
+  var statusEl = document.getElementById('status');
+  var preview = document.getElementById('preview');
+  var imageData = null; // base64 da foto redimensionada
+  var inputs = [document.getElementById('cam'), document.getElementById('gal')];
+
+  inputs.forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var f = inp.files[0];
+      if (!f) return;
+      setStatus('Preparando foto...', '');
+      resize(f, 1920, function (dataUrl) {
+        imageData = dataUrl.split(',')[1];
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Enviar foto';
+        setStatus('', '');
+      });
+    });
+  });
+
+  sendBtn.addEventListener('click', function () {
+    if (!imageData) return;
+    sendBtn.disabled = true;
+    setStatus('Enviando... &#10052;&#65039;', '');
+    var legenda = document.getElementById('handle').value.trim();
+
+    // timeout: no Wi-Fi do evento o envio pode travar sem nunca responder
+    var ctrl = ('AbortController' in window) ? new AbortController() : null;
+    var timeout = setTimeout(function () { if (ctrl) ctrl.abort(); }, 30000);
+
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ handle: legenda, mimeType: 'image/jpeg', data: imageData }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      clearTimeout(timeout);
+      if (res.ok) {
+        setStatus('Foto enviada! Ela vai aparecer na TV em instantes &#10052;&#65039;', 'ok');
+        imageData = null;
+        preview.style.display = 'none';
+        inputs.forEach(function (inp) { inp.value = ''; });
+        document.getElementById('handle').value = '';
+        sendBtn.textContent = 'Enviar outra foto';
+      } else {
+        throw new Error(res.error || 'erro');
+      }
+    })
+    .catch(function (err) {
+      clearTimeout(timeout);
+      var lento = err && err.name === 'AbortError';
+      setStatus(lento
+        ? 'A internet est&aacute; lenta. Tente enviar de novo.'
+        : 'N&atilde;o foi poss&iacute;vel enviar. Tente de novo.', 'err');
+      sendBtn.disabled = false;
+    });
+  });
+
+  // Redimensiona a foto no celular antes de enviar (mais rapido no Wi-Fi do evento)
+  function resize(file, maxSide, cb) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      var scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      cb(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = function () { setStatus('Arquivo inv\u00e1lido.', 'err'); };
+    img.src = url;
+  }
+
+  function setStatus(html, cls) {
+    statusEl.innerHTML = html;
+    statusEl.className = cls;
+  }
+</script>
+</body>
+</html>

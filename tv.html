@@ -19,10 +19,24 @@
     transition: opacity 1.5s ease-in-out;
     -webkit-transition: opacity 1.5s ease-in-out;
   }
+  .layer .bg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-position: center; background-size: cover; background-repeat: no-repeat;
+    -webkit-filter: blur(26px) brightness(0.5); filter: blur(26px) brightness(0.5);
+    -webkit-transform: scale(1.18); transform: scale(1.18); /* esconde as bordas borradas */
+    display: none;
+  }
   .layer .pic {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background-position: center; background-size: contain; background-repeat: no-repeat;
+    -webkit-transform-origin: center center; transform-origin: center center;
   }
+  .layer .pic.kb {
+    -webkit-animation: kenburns 11500ms ease-out forwards;
+    animation: kenburns 11500ms ease-out forwards;
+  }
+  @keyframes kenburns { from { transform: scale(1.04); } to { transform: scale(1.13); } }
+  @-webkit-keyframes kenburns { from { -webkit-transform: scale(1.04); } to { -webkit-transform: scale(1.13); } }
   .layer video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; display: none; background: #000; /* preenche a tela proporcionalmente */
@@ -75,17 +89,29 @@
     height: 0.85em !important; width: 0.85em !important;
     margin-right: 12px;
   }
+  /* tela de início: 1 toque libera o áudio dos vídeos */
+  #start {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20;
+    background: #06122b; cursor: pointer; color: #fff; text-align: center;
+    font-family: 'Quicksand', Arial, Helvetica, sans-serif;
+    display: -webkit-flex; display: flex;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: center; justify-content: center;
+  }
+  #startbox { font-size: 42px; line-height: 1.5; font-weight: 600; }
+  #startbox small { font-size: 24px; opacity: 0.8; }
 </style>
 </head>
 <body>
-  <div id="layerA" class="layer"><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
-  <div id="layerB" class="layer"><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
+  <div id="layerA" class="layer"><div class="bg"></div><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
+  <div id="layerB" class="layer"><div class="bg"></div><div class="pic"></div><video playsinline preload="auto"></video><div class="handle"></div></div>
   <div id="brand">
     <img id="logomarca" src="logo-marca.png" alt="">
     <div id="titulo"></div>
   </div>
   <div id="qr"><img id="qrimg" alt="QR"><div>ENVIE SUA FOTO &#128247;</div></div>
   <div id="msg">Aguardando fotos...</div>
+  <div id="start"><div id="startbox">&#9654;<br>Toque para iniciar<br><small>com som &#128266;</small></div></div>
 
 <script src="config.js"></script>
 <script>
@@ -118,6 +144,7 @@
   var videoIdx = 0;       // rotação sequencial dos vídeos
   var contadorFotos = 0;  // fotos exibidas desde o último vídeo
   var firstLoad = true;
+  var iniciado = false;   // vira true após o toque inicial (libera áudio dos vídeos)
   var activeA = true;
   var avancarTimer = null;
 
@@ -132,6 +159,14 @@
 
   function urlFoto(id) {
     return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1920';
+  }
+
+  // baixa a próxima foto da rotação enquanto a atual está na tela (transição sem buraco)
+  function prefetchProximaFoto() {
+    var ok = fotos.filter(disponivel);
+    if (ok.length === 0) return;
+    var prox = priority.length > 0 ? priority[0] : ok[fotoIdx % ok.length];
+    if (prox) { var im = new Image(); im.src = urlFoto(prox); }
   }
 
   function urlVideo(id) {
@@ -158,7 +193,7 @@
     videos = novosVideos;
     priority = priority.filter(function (id) { return current[id]; });
 
-    if (firstLoad && (fotos.length > 0 || videos.length > 0)) {
+    if (iniciado && firstLoad && (fotos.length > 0 || videos.length > 0)) {
       firstLoad = false;
       document.getElementById('msg').style.display = 'none';
       showNext();
@@ -235,6 +270,7 @@
       contadorFotos++;
       mostrarFoto(img.src, item.handle || '');
       agendar(SEG_FOTO);
+      prefetchProximaFoto();
     };
     img.onerror = function () {
       indisponiveis[id] = Date.now() + 60000; // pula esta foto por 1 min
@@ -246,7 +282,7 @@
   function trocar(preparar, handle) {
     var show = document.getElementById(activeA ? 'layerB' : 'layerA');
     var hide = document.getElementById(activeA ? 'layerA' : 'layerB');
-    preparar(show.getElementsByClassName('pic')[0], show.getElementsByTagName('video')[0]);
+    preparar(show.getElementsByClassName('pic')[0], show.getElementsByTagName('video')[0], show.getElementsByClassName('bg')[0]);
     var legendaEl = show.getElementsByClassName('handle')[0];
     legendaEl.textContent = handle ? '⛄ ' + handle + ' ⛄' : ''; // legenda com boneco de neve
     emojiImg(legendaEl);
@@ -266,10 +302,17 @@
   }
 
   function mostrarFoto(url, handle) {
-    trocar(function (pic, vid) {
+    trocar(function (pic, vid, bg) {
       vid.style.display = 'none';
+      bg.style.display = 'block';
+      bg.style.backgroundImage = 'url("' + url + '")'; // mesma foto borrada preenchendo a tela
       pic.style.display = 'block';
       pic.style.backgroundImage = 'url("' + url + '")';
+      // reinicia o Ken Burns (zoom suave) nesta foto
+      pic.className = 'pic';
+      void pic.offsetWidth; // força reflow para a animação rodar de novo
+      pic.style.animationDuration = (SEG_FOTO + 1500) + 'ms';
+      pic.className = 'pic kb';
     }, handle);
   }
 
@@ -309,7 +352,9 @@
   }
 
   function tocarVideo(url, handle) {
-    trocar(function (pic, vid) {
+    trocar(function (pic, vid, bg) {
+      bg.style.display = 'none';
+      pic.className = 'pic'; // tira o Ken Burns no vídeo
       pic.style.display = 'none';
       pic.style.backgroundImage = '';
       vid.style.display = 'block';
@@ -344,6 +389,18 @@
     };
     x.send();
   }
+
+  // toque inicial: autoplay de vídeo COM SOM exige 1 interação do usuário.
+  // o operador toca uma vez ao montar a TV e o áudio fica liberado pela sessão.
+  document.getElementById('start').addEventListener('click', function () {
+    iniciado = true;
+    this.style.display = 'none';
+    if (firstLoad && (fotos.length > 0 || videos.length > 0)) {
+      firstLoad = false;
+      document.getElementById('msg').style.display = 'none';
+      showNext();
+    }
+  });
 
   poll();
   setInterval(poll, SEG_ATUALIZA);
